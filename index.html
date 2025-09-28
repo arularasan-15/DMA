@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🎬 Movie Recommendation System</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      width: 100%;
+      max-width: 500px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      color: white;
+      box-shadow: 0 25px 45px rgba(0,0,0,0.3);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px rgba(0,123,255,0.8);
+    }
+    label {
+      display: block;
+      margin: 15px 0 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: white;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: linear-gradient(135deg, #0056b3, #003f7f);
+    }
+    ul {
+      margin-top: 20px;
+      padding-left: 20px;
+    }
+    li {
+      margin: 8px 0;
+    }
+    .chart-container {
+      margin-top: 25px;
+      background: rgba(0,0,0,0.2);
+      padding: 15px;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2><i class="fas fa-film"></i> Movie Recommendation</h2>
+    
+    <label for="user">👤 Enter User ID:</label>
+    <input type="number" id="user" value="1" placeholder="Enter user ID" />
+
+    <button onclick="getRecommendations()">
+      <span><i class="fas fa-magic"></i> Get Recommendations</span>
+    </button>
+
+    <h3>🎥 Recommended Movies</h3>
+    <ul id="recommendations"></ul>
+
+    <div class="chart-container">
+      <h4><i class="fas fa-chart-bar"></i> Recommendation Scores</h4>
+      <canvas id="recChart" height="150"></canvas>
+    </div>
+  </div>
+
+  <script>
+    async function getRecommendations() {
+      const userId = document.getElementById("user").value;
+
+      try {
+        const res = await fetch("https://your-api-endpoint/recommend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user: userId })
+        });
+
+        if (!res.ok) throw new Error("API error");
+        const data = await res.json();
+
+        // Show recommendations in list
+        const recList = document.getElementById("recommendations");
+        recList.innerHTML = "";
+        data.recommendations.forEach(rec => {
+          let li = document.createElement("li");
+          li.textContent = `${rec.movie} (Score: ${rec.score.toFixed(2)})`;
+          recList.appendChild(li);
+        });
+
+        // Render chart
+        const ctx = document.getElementById('recChart').getContext('2d');
+        if (window.recChart) window.recChart.destroy();
+
+        window.recChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: data.recommendations.map(r => r.movie),
+            datasets: [{
+              label: 'Recommendation Score',
+              data: data.recommendations.map(r => r.score),
+              backgroundColor: 'rgba(0,123,255,0.6)',
+              borderColor: '#007bff',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: { ticks: { color: "white" }, grid: { color: "rgba(255,255,255,0.1)" } },
+              y: { ticks: { color: "white" }, grid: { color: "rgba(255,255,255,0.1)" } }
+            }
+          }
+        });
+
+      } catch (err) {
+        console.error("Error:", err);
+        document.getElementById("recommendations").innerHTML = "<li>⚠️ Could not fetch recommendations.</li>";
+      }
+    }
+  </script>
+</body>
+</html>
