@@ -3,12 +3,15 @@ library(dplyr)
 library(shinythemes)
 library(shinycssloaders)
 library(shinyjs)
+library(ggplot2)
+library(plotly)
+library(pROC)
 
 # Sample movie data
 movies <- data.frame(
-  title = c("sita ramam", "kakki sattai", "viduthalai", "pichaikaran", 
+  title = c("sita ramam", "kakki sattai", "viduthalai", "pichaikaran",
             "vikram", "bakiyalakshmi","paasamalar","Amaran","sivakasi","Muthuku Muthaga"),
-  genre = c("Romance", "Action", "Action", "Sentiment", 
+  genre = c("Romance", "Action", "Action", "Sentiment",
             "Action", "Sentiment","Sentiment","Romance","Sentiment","Sentiment"),
   rating = c(8,9,6,7,5,4,3,2,1,0),
   stringsAsFactors = FALSE
@@ -52,7 +55,7 @@ ui <- fluidPage(
     "))
   ),
   titlePanel(tags$h1("🎬 Movie Recommendation System", 
-                     style = "color:white; text-shadow:2px 2px 5px #000;")),
+                    style = "color:white; text-shadow:2px 2px 5px #000;")),
   sidebarLayout(
     sidebarPanel(
       class = "sidebar",
@@ -67,8 +70,24 @@ ui <- fluidPage(
     ),
     mainPanel(
       class = "main-panel",
-      h3("Recommended Movies (Rotating)", style = "color:#333;"),
-      withSpinner(uiOutput("rotating_recommendation"), type = 6, color = "#FF5733")
+      tabsetPanel(
+        tabPanel("Recommendations",
+                 h3("Recommended Movies (Rotating)", style = "color:#333;"),
+                 withSpinner(uiOutput("rotating_recommendation"), type = 6, color = "#FF5733")
+        ),
+        tabPanel("Bar Chart",
+                 h3("Average Rating by Genre"),
+                 plotlyOutput("bar_chart")
+        ),
+        tabPanel("Pie Chart",
+                 h3("Genre Distribution"),
+                 plotlyOutput("pie_chart")
+        ),
+        tabPanel("ROC Curve",
+                 h3("Sample ROC Curve (Simulated)"),
+                 plotlyOutput("roc_curve")
+        )
+      )
     )
   )
 )
@@ -121,6 +140,59 @@ server <- function(input, output, session) {
       session$sendCustomMessage(type = 'startRotation', message = recs)
     }
   })
+  
+  # Bar chart of average rating by genre
+  output$bar_chart <- renderPlotly({
+    avg_ratings <- movies %>%
+      group_by(genre) %>%
+      summarise(avg_rating = mean(rating))
+    
+    p <- ggplot(avg_ratings, aes(x = genre, y = avg_rating, fill = genre)) +
+      geom_bar(stat = "identity") +
+      labs(x = "Genre", y = "Average Rating") +
+      theme_minimal() +
+      theme(legend.position = "none")
+    
+    ggplotly(p)
+  })
+  
+  # Pie chart of genre distribution
+  output$pie_chart <- renderPlotly({
+    genre_counts <- movies %>%
+      group_by(genre) %>%
+      summarise(count = n())
+    
+    p <- plot_ly(genre_counts, labels = ~genre, values = ~count, type = 'pie') %>%
+      layout(title = 'Genre Distribution',
+             xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+             yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+    p
+  })
+  
+  # ROC Curve simulation for demonstration
+  output$roc_curve <- renderPlotly({
+    # Simulate a binary outcome and predictions
+    set.seed(123)
+    true_labels <- sample(c(0,1), size = nrow(movies), replace = TRUE)
+    predicted_scores <- runif(nrow(movies))
+    
+    roc_obj <- roc(true_labels, predicted_scores)
+    roc_df <- data.frame(
+      specificity = roc_obj$specificities,
+      sensitivity = roc_obj$sensitivities
+    )
+    
+    p <- ggplot(roc_df, aes(x = 1 - specificity, y = sensitivity)) +
+      geom_line(color = "blue", size = 1.2) +
+      geom_abline(linetype = "dashed") +
+      labs(title = paste("ROC Curve (AUC =", round(auc(roc_obj), 3), ")"),
+           x = "False Positive Rate (1 - Specificity)",
+           y = "True Positive Rate (Sensitivity)") +
+      theme_minimal()
+    
+    ggplotly(p)
+  })
+  
 }
 
 jsCode <- "
